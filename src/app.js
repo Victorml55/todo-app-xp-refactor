@@ -3,12 +3,12 @@
 // Responsabilidad: punto de entrada y eventos
 // ==========================================
 
-import { saveTasks, loadTasks, saveTags, loadTags, saveTheme, loadTheme } from './storage/storage.js';
-import { createTask, addTask, deleteTask, toggleComplete, editTask, filterTasks, addTag, deleteTag, isValidTitle } from './tasks/tasks.js';
+import { loadTasks, saveTask, updateTask, deleteTaskAPI, saveTags, loadTags, saveTheme, loadTheme } from './storage/storage.js';
+import { createTask, addTag, deleteTag, filterTasks, isValidTitle } from './tasks/tasks.js';
 import { renderTable, renderNewTaskTagSelector, renderEditTagSelector, renderTagsManagement, renderTagFilters, updateStatusFilters, openEditModal, closeEditModal, openConfirmModal, closeConfirmModal, showInputError, applyTheme } from './ui/ui.js';
 
 // ── Estado ─────────────────────────────────────
-let tasks          = loadTasks();
+let tasks          = [];
 let availableTags  = loadTags();
 let statusFilter   = 'all';
 let tagFilter      = null;
@@ -38,7 +38,7 @@ function render() {
 }
 
 // ── Handlers — Tareas ──────────────────────────
-function handleAddTask() {
+async function handleAddTask() {
   const title   = document.getElementById('taskTitle').value;
   const desc    = document.getElementById('taskDesc').value;
   const dueDate = document.getElementById('taskDueDate').value;
@@ -48,9 +48,11 @@ function handleAddTask() {
     return;
   }
 
-  const newTask = createTask(title, desc, dueDate, newTaskTags);
-  tasks = addTask(tasks, newTask);
-  saveTasks(tasks);
+  const taskData = createTask(title, desc, dueDate, newTaskTags);
+  const saved    = await saveTask(taskData);
+  if (!saved) return;
+
+  tasks = await loadTasks();
 
   document.getElementById('taskTitle').value   = '';
   document.getElementById('taskDesc').value    = '';
@@ -60,9 +62,11 @@ function handleAddTask() {
   render();
 }
 
-function handleToggleComplete(id) {
-  tasks = toggleComplete(tasks, id);
-  saveTasks(tasks);
+async function handleToggleComplete(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  await updateTask(id, { completed: !task.completed });
+  tasks = await loadTasks();
   render();
 }
 
@@ -71,10 +75,10 @@ function handleOpenDelete(id) {
   openConfirmModal();
 }
 
-function handleConfirmDelete() {
+async function handleConfirmDelete() {
   if (deletingTaskId === null) return;
-  tasks = deleteTask(tasks, deletingTaskId);
-  saveTasks(tasks);
+  await deleteTaskAPI(deletingTaskId);
+  tasks          = await loadTasks();
   deletingTaskId = null;
   closeConfirmModal();
   render();
@@ -88,7 +92,7 @@ function handleOpenEdit(id) {
   openEditModal(task, availableTags, editingTags, handleEditTagChange);
 }
 
-function handleSaveEdit() {
+async function handleSaveEdit() {
   if (!editingTaskId) return;
   const title = document.getElementById('editTitle').value;
 
@@ -104,8 +108,8 @@ function handleSaveEdit() {
     tags:        editingTags.length > 0 ? editingTags : ['general'],
   };
 
-  tasks = editTask(tasks, editingTaskId, changes);
-  saveTasks(tasks);
+  await updateTask(editingTaskId, changes);
+  tasks         = await loadTasks();
   editingTaskId = null;
   closeEditModal();
   render();
@@ -150,7 +154,6 @@ function handleDeleteTag(tagName) {
   availableTags = result.tags;
   tasks         = result.tasks;
   if (tagFilter === tagName) tagFilter = null;
-  saveTasks(tasks);
   saveTags(availableTags);
   render();
 }
@@ -219,5 +222,10 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Inicio ─────────────────────────────────────
-applyTheme(loadTheme() === 'dark');
-render();
+async function init() {
+  applyTheme(loadTheme() === 'dark');
+  tasks = await loadTasks();
+  render();
+}
+
+init();
