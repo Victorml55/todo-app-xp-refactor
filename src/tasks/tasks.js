@@ -13,7 +13,7 @@
  */
 export function createTask(title, description, dueDate, tags) {
   return {
-    id:          Date.now(),
+    id:          Date.now() + Math.random(),
     title:       title.trim(),
     description: description.trim(),
     completed:   false,

@@ -1,0 +1,16 @@
+{
+  "name": "todo-app-xp-refactor",
+  "version": "1.0.0",
+  "description": "ToDo App refactorizada con buenas prácticas de JavaScript",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@jest/globals": "^29.0.0",
+    "jest": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}
