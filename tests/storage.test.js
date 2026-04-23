@@ -3,8 +3,11 @@
 // Módulo: src/storage/storage.js
 // ==========================================
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
-import { saveTasks, loadTasks, saveTags, loadTags, saveTheme, loadTheme } from '../src/storage/storage.js';
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { saveTask, loadTasks, updateTask, deleteTaskAPI, saveTags, loadTags, saveTheme, loadTheme } from '../src/storage/storage.js';
+
+// Mock de fetch para Node.js
+global.fetch = jest.fn();
 
 // Mock de localStorage para Node.js
 const localStorageMock = (() => {
@@ -21,29 +24,35 @@ global.localStorage = localStorageMock;
 
 beforeEach(() => {
   localStorage.clear();
+  jest.clearAllMocks();
 });
 
-// ── saveTasks / loadTasks ──────────────────────
-describe('saveTasks y loadTasks', () => {
-  test('guarda y carga tareas correctamente', () => {
+// ── saveTask / loadTasks ──────────────────────
+describe('saveTask y loadTasks', () => {
+  test('loadTasks retorna las tareas del servidor', async () => {
     const tasks = [{ id: 1, title: 'Tarea', completed: false, tags: ['general'], description: '', createdAt: null, dueDate: null }];
-    saveTasks(tasks);
-    const loaded = loadTasks();
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => tasks });
+    const loaded = await loadTasks();
     expect(loaded.length).toBe(1);
     expect(loaded[0].title).toBe('Tarea');
   });
 
-  test('retorna arreglo vacío si no hay tareas guardadas', () => {
-    const loaded = loadTasks();
+  test('loadTasks retorna arreglo vacío si falla el servidor', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+    const loaded = await loadTasks();
     expect(loaded).toEqual([]);
   });
 
-  test('agrega campos faltantes a tareas antiguas', () => {
-    const tasks = [{ id: 1, title: 'Vieja' }];
-    saveTasks(tasks);
-    const loaded = loadTasks();
-    expect(loaded[0].tags).toEqual(['general']);
-    expect(loaded[0].description).toBe('');
+  test('saveTask envía la tarea al servidor y retorna la creada', async () => {
+    const task    = { title: 'Nueva', completed: false, tags: ['general'] };
+    const created = { id: 1, ...task };
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => created });
+    const result = await saveTask(task);
+    expect(result).toEqual(created);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/tasks'),
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 });
 
